@@ -1,0 +1,12 @@
+.gradle
+.idea
+.vertx
+*.iml
+*.iws
+*.ipr
+target/
+build/
+.ruby-version
+.sass-cache/
+Gemfile.lock
+_site/

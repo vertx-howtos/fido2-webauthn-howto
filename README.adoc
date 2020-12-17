@@ -1,0 +1,180 @@
+= Template and instructions for the Eclipse Vert.x how-tos
+:author: Julien Ponge <julien.ponge@gmail.com>
+:toc:
+
+This repository can be cloned and used as a basis for creating a new Eclipse Vert.x how-to.
+It especially contains the https://jekyllrb.com/[Jekyll] and continuous integration configurations for publishing a how-to as a web page.
+
+== Conventions
+
+Each how-to is a self-contained Git repository of the https://github.com/vertx-howtos[corresponding organisation on GitHub].
+
+The how-to document is written using the https://asciidoctor.org/docs/what-is-asciidoc/[Asciidoc] text format in a file called `README.adoc` at the root of the Git repository.
+
+The accompanying source code is directly at the root of the Git repository.
+For instance a Maven `pom.xml` is co-located with `README.adoc` at the root of the repository.
+
+Projects should preferably have both Maven and Gradle build descriptors.
+An author who doesn't have knowledge of either of the tools can always ask for contributions.
+
+== Structure of a how-to
+
+A how-to is not a guide or a mini-book: it must be as concise as possible.
+
+In practice this means that each how-to must focus on a very narrow topic.
+It also means that the text must not deviate from the topic, and that the chosen example must be as simple as possible.
+
+The structure of a how-to must be as follows.
+
+=== What you will build
+
+- Explain the example scenario from a functional point of view.
+- Explain what the user can see when running the example.
+- Highlight the different pieces of code to be written and how they fit together.
+
+=== What you need
+
+- List all required tools to edit, build and run the how-to.
+- Do not hesitate to point to third-party resources (e.g., if you need Docker, say why you need it and point to its installation documentation).
+
+=== Create a project
+
+- Explain how to create the project.
+- Show the Maven / Gradle build descriptors.
+- For any third-party tool (e.g., running a database with Docker), also have a subsection to explain this.
+
+=== Implementation sections
+
+- Make one or multiple sections to show the implementation.
+- Make use of Asciidoc source code comments to highlight specific parts of the code.
+- The code must be included using https://asciidoctor.org/docs/asciidoc-syntax-quick-reference/#source-code[Asciidoc directives]. Remember that you can include fragments of code by using delimiter tags.
+
+=== Running the application
+
+- Always show the various options to run the application.
+
+=== Summary
+
+- Briefly recapitulate what was covered and learned in the how-to.
+
+=== See also
+
+- If possible, link to other how-tos.
+- If judicious, link to Vert.x or third-party documentation.
+
+== How is the website being rendered?
+
+The website is being rendered using Jekyll and the Asciidoctor extension for Jekyll.
+
+There is a https://github.com/vertx-howtos/vertx-howtos-jekyll-theme[Jekyll theme] published as a Ruby Gem, so every how-to uses a common theme.
+
+=== Asciidoctor attributes
+
+The common theme depends on the following attributes to be set right below the title header:
+
+[source,text]
+----
+= My awesome how-to
+:page-permalink: /
+:page-github: vertx-howtos/my-howto
+----
+
+The `page-permalink` attribute ensures that `README.adoc` is rendered as `index.html` rather than `README.adoc`.
+
+The `page-github` attribute must contain the joint GitHub organization and repository so it can properly link to the GitHub repository, provide a direct edition link, and more.
+
+=== Jekyll configuration
+
+The Jekyll configuration shall not have to be tweaked much, here is the basic configuration that we use:
+
+[source,yaml]
+----
+include::_config.yml[]
+----
+
+TIP: When running Jekyll, check the content of the `_site/` folder and adapt the `exclude` items to avoid pushing unnecessary content to the website.
+
+=== Ruby environment
+
+It is strongly recommended to use either https://github.com/rbenv/rbenv[rbenv] or https://rvm.io/[RVM] for your Ruby installation.
+
+You will need https://bundler.io/[Bundler] to install all required dependencies:
+
+----
+$ gem install bundler
+----
+
+You can then let _Bundler_ do the installation work:
+
+----
+$ bundle install
+----
+
+From time to time you may also update dependencies:
+
+----
+$ bundle update
+----
+
+The dependencies are specified in the `Gemfile` file:
+
+[source,ruby]
+----
+include::Gemfile[]
+----
+
+TIP: Keep the `vertx-howtos-jekyll-theme` dependency up-to-date!
+
+=== Running Jekyll
+
+You can run Jekyll with a full auto-reload experience:
+
+----
+$ bundle exec jekyll server --watch --livereload
+----
+
+== How is the website being published?
+
+The content first needs to be rendered by Jekyll, then the resulting web site files are being pushed to the repository `gh-pages` branch.
+GitHub pages then exposes the content of the `gh-pages` branch as the website.
+
+While you could do this manually, we automate the process with Travis-CI that also has a special deployment provider to further simplify the process.
+
+=== Travis-CI configuration
+
+Feel-free to customize the `.travis.yml` configuration to check that your how-to code builds and passes tests, but keep the `deploy` tree close to that one:
+
+[source,yaml]
+----
+include::.travis.yml[]
+----
+
+`$GITHUB_TOKEN` is a Travis-CI secret to pass a GitHub API token so that the CI job can push to the `gh-pages` branch.
+It is configured on Travis-CI by a Vert.x project maintainer.
+
+Note that we only publish on the `master` branch, but pull-requests can still be tested.
+This also means that we are in a model where the `master` branch is the latest stable revision.
+
+=== Travis-CI cron job
+
+It is strongly advised to set-up a cron job in Travis-CI to regularly build a how-to.
+
+Building on a daily basis is a good option to ensure theme updates are quickly reflected.
+
+== Misc
+
+=== Code style
+
+There is a `.editorconfig` file in this template repository with the 2-space indentation style that we prefer in Vert.x.
+
+In any case, favour readability in samples:
+
+- do not hesitate to use blank lines,
+- do not over-engineer,
+- use explicit short private methods rather than complicated lambdas expressions.
+
+=== Asciidoc style
+
+Asciidoc does not enforce any style.
+
+We recommended that you follow the https://asciidoctor.org/docs/asciidoc-recommended-practices/[Asciidoctor recommended practices], and especially the https://asciidoctor.org/docs/asciidoc-recommended-practices/#one-sentence-per-line["One sentence per line"] rule.
