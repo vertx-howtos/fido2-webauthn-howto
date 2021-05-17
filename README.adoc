@@ -68,7 +68,24 @@ keytool \
 Your new SSL certificate is on the file `mytestkeys.jks`.
 
 
-== Implementation sections
+== Registration Flow
+
+Before being able to _login_ to your application we will need to register an FIDO2 authenticator. This process is similar to a "sign-up" flow in web application. There are however a few differences that this diagram tries to illustrate:
+
+image::register-flow.jpg[]
+
+1. User registers using just a **username**
+2. Your server (Relying Party) creates a secure challenge
+3. The browser will pass this information to the token device
+4. The token generates a new key pair for this information
+5. The challenge is signed and returned to the server (RP)
+6. The server verifies that the challenge is correct and stores the public key
+
+== Authentication Flow
+
+image::authn-flow.jpg[]
+
+
 
 - Make one or multiple sections to show the implementation.
 - Make use of Asciidoc source code comments to highlight specific parts of the code.
