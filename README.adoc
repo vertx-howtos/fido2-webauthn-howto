@@ -1,180 +1,88 @@
-= Template and instructions for the Eclipse Vert.x how-tos
-:author: Julien Ponge <julien.ponge@gmail.com>
+= Vert.x FIDO2 webauthn for web applications
+:author: Paulo Lopes <pmlopes@gmail.com>
 :toc:
 
-This repository can be cloned and used as a basis for creating a new Eclipse Vert.x how-to.
-It especially contains the https://jekyllrb.com/[Jekyll] and continuous integration configurations for publishing a how-to as a web page.
+This how to will show you how to build and secure a simple web vert.x application with FIDO2 (commonly known as Web Authentication API). The Web Authentication API (also known as WebAuthn) is a specification written by the W3C and FIDO, with the participation of Google, Mozilla, Microsoft, Yubico, and others. The API allows servers to register and authenticate users using public key cryptography instead of a password.
 
-== Conventions
 
-Each how-to is a self-contained Git repository of the https://github.com/vertx-howtos[corresponding organisation on GitHub].
+== What you will build
 
-The how-to document is written using the https://asciidoctor.org/docs/what-is-asciidoc/[Asciidoc] text format in a file called `README.adoc` at the root of the Git repository.
+By the end of this how-to, you will have a working application that requires or stores passwords to perform authentication. This will be achieved with WebAuthn, which is a new W3C global standard for secure authentication on the Web supported by all leading browsers and platforms.
 
-The accompanying source code is directly at the root of the Git repository.
-For instance a Maven `pom.xml` is co-located with `README.adoc` at the root of the repository.
 
-Projects should preferably have both Maven and Gradle build descriptors.
-An author who doesn't have knowledge of either of the tools can always ask for contributions.
+== What you need
 
-== Structure of a how-to
+* A text editor or IDE
+* Java 8 or higher (11 or >=15 recommended for the extra security algorithms)
+* Internet access
 
-A how-to is not a guide or a mini-book: it must be as concise as possible.
 
-In practice this means that each how-to must focus on a very narrow topic.
-It also means that the text must not deviate from the topic, and that the chosen example must be as simple as possible.
+== Create a project
 
-The structure of a how-to must be as follows.
+Go to start.vertx.io and https://start.vertx.io/starter.zip?groupId=howto&artifactId=oauth-oidc&vertxDependencies=vertx-web&vertx-auth-webauthn[create a project] with the following dependencies:
 
-=== What you will build
+* Vert.x Web
+* Webauthn Auth
 
-- Explain the example scenario from a functional point of view.
-- Explain what the user can see when running the example.
-- Highlight the different pieces of code to be written and how they fit together.
+image::project.png[width=600]
 
-=== What you need
 
-- List all required tools to edit, build and run the how-to.
-- Do not hesitate to point to third-party resources (e.g., if you need Docker, say why you need it and point to its installation documentation).
+== Security first
 
-=== Create a project
+Web Authentication API is a secure API and vendors decided to follow the best practices. While you can build a server without using SSL, modern web browsers will not connect or allow the usage of the webauthn APIs with servers not using SSL, even during development.
 
-- Explain how to create the project.
-- Show the Maven / Gradle build descriptors.
-- For any third-party tool (e.g., running a database with Docker), also have a subsection to explain this.
+Before we can start using webauthn we will need to ensure that even our development application is SSL ready. For this we need to create a valid SSL certificate. Do note that self signed certificates are still allowed:
 
-=== Implementation sections
+To create a self-signed certificate for your IP address do the following:
+
+[source,bash]
+----
+keytool \
+  -genkeypair \
+  -alias rsakey \
+  -keyalg rsa \
+  -storepass passphrase \      # <1>
+  -keystore mytestkeys.jks \
+  -storetype JKS \
+  -dname "CN=192.168.178.74.xip.io,O=Vert.x Development" # <2>
+----
+<1> Don't use this password!
+<2> replace the CN with your own IP address (other than localhost) with suffix .xip.io
+
+For this setup we're relying on a "free" DNS server that returns your IP address when queried. Other services exist in the web that provide the same results, for example:
+
+* https://sslip.io/
+* https://nip.io/
+
+At this moment we have a SSL certificate, however the format is considered deprecated for modern Java versions, so we need a second step to convert it to `PKCS#12`:
+
+[source,bash]
+----
+keytool \
+  -importkeystore \
+  -srckeystore mytestkeys.jks \
+  -destkeystore mytestkeys.jks \
+  -deststoretype pkcs12
+----
+
+Your new SSL certificate is on the file `mytestkeys.jks`.
+
+
+== Implementation sections
 
 - Make one or multiple sections to show the implementation.
 - Make use of Asciidoc source code comments to highlight specific parts of the code.
 - The code must be included using https://asciidoctor.org/docs/asciidoc-syntax-quick-reference/#source-code[Asciidoc directives]. Remember that you can include fragments of code by using delimiter tags.
 
-=== Running the application
+== Running the application
 
 - Always show the various options to run the application.
 
-=== Summary
+== Summary
 
 - Briefly recapitulate what was covered and learned in the how-to.
 
-=== See also
+== See also
 
 - If possible, link to other how-tos.
 - If judicious, link to Vert.x or third-party documentation.
-
-== How is the website being rendered?
-
-The website is being rendered using Jekyll and the Asciidoctor extension for Jekyll.
-
-There is a https://github.com/vertx-howtos/vertx-howtos-jekyll-theme[Jekyll theme] published as a Ruby Gem, so every how-to uses a common theme.
-
-=== Asciidoctor attributes
-
-The common theme depends on the following attributes to be set right below the title header:
-
-[source,text]
-----
-= My awesome how-to
-:page-permalink: /
-:page-github: vertx-howtos/my-howto
-----
-
-The `page-permalink` attribute ensures that `README.adoc` is rendered as `index.html` rather than `README.adoc`.
-
-The `page-github` attribute must contain the joint GitHub organization and repository so it can properly link to the GitHub repository, provide a direct edition link, and more.
-
-=== Jekyll configuration
-
-The Jekyll configuration shall not have to be tweaked much, here is the basic configuration that we use:
-
-[source,yaml]
-----
-include::_config.yml[]
-----
-
-TIP: When running Jekyll, check the content of the `_site/` folder and adapt the `exclude` items to avoid pushing unnecessary content to the website.
-
-=== Ruby environment
-
-It is strongly recommended to use either https://github.com/rbenv/rbenv[rbenv] or https://rvm.io/[RVM] for your Ruby installation.
-
-You will need https://bundler.io/[Bundler] to install all required dependencies:
-
-----
-$ gem install bundler
-----
-
-You can then let _Bundler_ do the installation work:
-
-----
-$ bundle install
-----
-
-From time to time you may also update dependencies:
-
-----
-$ bundle update
-----
-
-The dependencies are specified in the `Gemfile` file:
-
-[source,ruby]
-----
-include::Gemfile[]
-----
-
-TIP: Keep the `vertx-howtos-jekyll-theme` dependency up-to-date!
-
-=== Running Jekyll
-
-You can run Jekyll with a full auto-reload experience:
-
-----
-$ bundle exec jekyll server --watch --livereload
-----
-
-== How is the website being published?
-
-The content first needs to be rendered by Jekyll, then the resulting web site files are being pushed to the repository `gh-pages` branch.
-GitHub pages then exposes the content of the `gh-pages` branch as the website.
-
-While you could do this manually, we automate the process with Travis-CI that also has a special deployment provider to further simplify the process.
-
-=== Travis-CI configuration
-
-Feel-free to customize the `.travis.yml` configuration to check that your how-to code builds and passes tests, but keep the `deploy` tree close to that one:
-
-[source,yaml]
-----
-include::.travis.yml[]
-----
-
-`$GITHUB_TOKEN` is a Travis-CI secret to pass a GitHub API token so that the CI job can push to the `gh-pages` branch.
-It is configured on Travis-CI by a Vert.x project maintainer.
-
-Note that we only publish on the `master` branch, but pull-requests can still be tested.
-This also means that we are in a model where the `master` branch is the latest stable revision.
-
-=== Travis-CI cron job
-
-It is strongly advised to set-up a cron job in Travis-CI to regularly build a how-to.
-
-Building on a daily basis is a good option to ensure theme updates are quickly reflected.
-
-== Misc
-
-=== Code style
-
-There is a `.editorconfig` file in this template repository with the 2-space indentation style that we prefer in Vert.x.
-
-In any case, favour readability in samples:
-
-- do not hesitate to use blank lines,
-- do not over-engineer,
-- use explicit short private methods rather than complicated lambdas expressions.
-
-=== Asciidoc style
-
-Asciidoc does not enforce any style.
-
-We recommended that you follow the https://asciidoctor.org/docs/asciidoc-recommended-practices/[Asciidoctor recommended practices], and especially the https://asciidoctor.org/docs/asciidoc-recommended-practices/#one-sentence-per-line["One sentence per line"] rule.
