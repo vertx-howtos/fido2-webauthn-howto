@@ -1,5 +1,5 @@
 theme: vertx-howtos-jekyll-theme
-url: https://vertx-howtos.github.io/HOWTO-ID
+url: https://vertx-howtos.github.io/fido2-webauthn-howto
 
 asciidoctor:
   attributes:
