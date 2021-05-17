@@ -53,7 +53,8 @@
 <li><a href="#what-you-need">What you need</a></li>
 <li><a href="#create-a-project">Create a project</a></li>
 <li><a href="#security-first">Security first</a></li>
-<li><a href="#implementation-sections">Implementation sections</a></li>
+<li><a href="#registration-flow">Registration Flow</a></li>
+<li><a href="#authentication-flow">Authentication Flow</a></li>
 <li><a href="#running-the-application">Running the application</a></li>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#see-also">See also</a></li>
@@ -180,8 +181,48 @@
 </div>
 </div>
 <div class="sect1">
-<h2 id="implementation-sections">Implementation sections</h2>
+<h2 id="registration-flow">Registration Flow</h2>
 <div class="sectionbody">
+<div class="paragraph">
+<p>Before being able to <em>login</em> to your application we will need to register an FIDO2 authenticator. This process is similar to a "sign-up" flow in web application. There are however a few differences that this diagram tries to illustrate:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="register-flow.jpg" alt="register flow">
+</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>User registers using just a <strong>username</strong></p>
+</li>
+<li>
+<p>Your server (Relying Party) creates a secure challenge</p>
+</li>
+<li>
+<p>The browser will pass this information to the token device</p>
+</li>
+<li>
+<p>The token generates a new key pair for this information</p>
+</li>
+<li>
+<p>The challenge is signed and returned to the server (RP)</p>
+</li>
+<li>
+<p>The server verifies that the challenge is correct and stores the public key</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="authentication-flow">Authentication Flow</h2>
+<div class="sectionbody">
+<div class="imageblock">
+<div class="content">
+<img src="authn-flow.jpg" alt="authn flow">
+</div>
+</div>
 <div class="ulist">
 <ul>
 <li>
@@ -339,7 +380,7 @@
   <div class="row">
     <div class="col">
       <hr>
-      <p><small>Last published: 2021-05-17 15:04:43 +0000.</small></p>
+      <p><small>Last published: 2021-05-17 18:37:39 +0000.</small></p>
     </div>
   </div>
 </div>
