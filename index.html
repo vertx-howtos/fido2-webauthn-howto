@@ -55,7 +55,19 @@
 <li><a href="#security-first">Security first</a></li>
 <li><a href="#registration-flow">Registration Flow</a></li>
 <li><a href="#authentication-flow">Authentication Flow</a></li>
-<li><a href="#running-the-application">Running the application</a></li>
+<li><a href="#writing-the-server-code">Writing the server code</a>
+<ul class="sectlevel2">
+<li><a href="#handling-authenticator-objects">Handling Authenticator Objects</a></li>
+<li><a href="#configure-the-webauthn-object">Configure the Webauthn Object</a></li>
+<li><a href="#web-router-initialization">Web router initialization</a></li>
+<li><a href="#server-boostrap">Server boostrap</a></li>
+</ul>
+</li>
+<li><a href="#writing-the-client-code">Writing the client code</a>
+<ul class="sectlevel2">
+<li><a href="#the-client-script-code">The client script code</a></li>
+</ul>
+</li>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#see-also">See also</a></li>
 </ul>
@@ -130,14 +142,16 @@
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="bash">keytool <span style="color: #d14">\</span>
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="bash"><span style="color: #0086B3">export </span><span style="color: #008080">IP</span><span style="color: #000000;font-weight: bold">=</span>10.0.0.2
+<span style="color: #0086B3">export </span><span style="color: #008080">CERTSTORE_SECRET</span><span style="color: #000000;font-weight: bold">=</span>password    # <b class="conum">(1)</b>
+keytool <span style="color: #d14">\</span>
   <span style="color: #000080">-genkeypair</span> <span style="color: #d14">\</span>
   <span style="color: #000080">-alias</span> rsakey <span style="color: #d14">\</span>
   <span style="color: #000080">-keyalg</span> rsa <span style="color: #d14">\</span>
-  <span style="color: #000080">-storepass</span> passphrase <span style="color: #d14">\ </span>     # <b class="conum">(1)</b>
-  <span style="color: #000080">-keystore</span> mytestkeys.jks <span style="color: #d14">\</span>
+  <span style="color: #000080">-storepass</span> <span style="color: #000000;font-weight: bold">${</span><span style="color: #008080">CERTSTORE_SECRET</span><span style="color: #000000;font-weight: bold">}</span> <span style="color: #d14">\</span>
+  <span style="color: #000080">-keystore</span> certstore.jks <span style="color: #d14">\</span>
   <span style="color: #000080">-storetype</span> JKS <span style="color: #d14">\</span>
-  <span style="color: #000080">-dname</span> <span style="color: #d14">"CN=192.168.178.74.xip.io,O=Vert.x Development"</span> # <b class="conum">(2)</b></code></pre>
+  <span style="color: #000080">-dname</span> <span style="color: #d14">"CN=</span><span style="color: #000000;font-weight: bold">${</span><span style="color: #008080">IP</span><span style="color: #000000;font-weight: bold">}</span><span style="color: #d14">.nip.io,O=Vert.x Development"</span> # <b class="conum">(2)</b></code></pre>
 </div>
 </div>
 <div class="colist arabic">
@@ -146,12 +160,12 @@
 <p>Don&#8217;t use this password!</p>
 </li>
 <li>
-<p>replace the CN with your own IP address (other than localhost) with suffix .xip.io</p>
+<p>replace the CN with your own IP address (other than localhost) with suffix <code>.nip.io</code></p>
 </li>
 </ol>
 </div>
 <div class="paragraph">
-<p>For this setup we&#8217;re relying on a "free" DNS server that returns your IP address when queried. Other services exist in the web that provide the same results, for example:</p>
+<p>For this setup we&#8217;re relying on a free DNS server that returns your IP address when queried. Other services exist in the web that provide the same results, for example:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -159,7 +173,7 @@
 <p><a href="https://sslip.io/" class="bare">https://sslip.io/</a></p>
 </li>
 <li>
-<p><a href="https://nip.io/" class="bare">https://nip.io/</a></p>
+<p><a href="https://xip.io/" class="bare">https://xip.io/</a></p>
 </li>
 </ul>
 </div>
@@ -170,13 +184,13 @@
 <div class="content">
 <pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="bash">keytool <span style="color: #d14">\</span>
   <span style="color: #000080">-importkeystore</span> <span style="color: #d14">\</span>
-  <span style="color: #000080">-srckeystore</span> mytestkeys.jks <span style="color: #d14">\</span>
-  <span style="color: #000080">-destkeystore</span> mytestkeys.jks <span style="color: #d14">\</span>
+  <span style="color: #000080">-srckeystore</span> certstore.jks <span style="color: #d14">\</span>
+  <span style="color: #000080">-destkeystore</span> certstore.jks <span style="color: #d14">\</span>
   <span style="color: #000080">-deststoretype</span> pkcs12</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>Your new SSL certificate is on the file <code>mytestkeys.jks</code>.</p>
+<p>Your new SSL certificate is on the file <code>certstore.jks</code>.</p>
 </div>
 </div>
 </div>
@@ -223,42 +237,492 @@
 <img src="authn-flow.jpg" alt="authn flow">
 </div>
 </div>
-<div class="ulist">
-<ul>
+<div class="olist arabic">
+<ol class="arabic">
 <li>
-<p>Make one or multiple sections to show the implementation.</p>
+<p>User authenticates using just a <strong>username</strong></p>
 </li>
 <li>
-<p>Make use of Asciidoc source code comments to highlight specific parts of the code.</p>
+<p>Your server (Relying Party) creates a secure challenge</p>
 </li>
 <li>
-<p>The code must be included using <a href="https://asciidoctor.org/docs/asciidoc-syntax-quick-reference/#source-code">Asciidoc directives</a>. Remember that you can include fragments of code by using delimiter tags.</p>
+<p>The browser will pass this information to the token device</p>
 </li>
-</ul>
+<li>
+<p>The token generates verifies the credential and signs the challenge</p>
+</li>
+<li>
+<p>The browser creates an authentication assertion</p>
+</li>
+<li>
+<p>The server verifies that the assertion is correct and allows the user</p>
+</li>
+</ol>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="running-the-application">Running the application</h2>
+<h2 id="writing-the-server-code">Writing the server code</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="handling-authenticator-objects">Handling Authenticator Objects</h3>
+<div class="paragraph">
+<p>You can find the full source code <a href="src/main/java/howto/fido2/MainVerticle.java">here</a>, for now let&#8217;s just cover important parts.</p>
+</div>
+<div class="paragraph">
+<p>In order to have some working registration and authentication we need to be able to store and query authenticator data. For this we need to provide a few functions that do exactly this job. You can check it&#8217;s source code <a href="src/main/java/howto/fido2/InMemoryStore.java">here</a>. In your verticle you start by creating this object as:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="java">    <span style="color: #999988;font-style: italic">// Dummy database, real world workloads</span>
+    <span style="color: #999988;font-style: italic">// use a persistent store or course!</span>
+    <span style="color: #445588;font-weight: bold">InMemoryStore</span> <span style="background-color: #f8f8f8">database</span> <span style="color: #000000;font-weight: bold">=</span> <span style="color: #000000;font-weight: bold">new</span> <span style="color: #445588;font-weight: bold">InMemoryStore</span><span style="color: #000000;font-weight: bold">();</span></code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="configure-the-webauthn-object">Configure the Webauthn Object</h3>
+<div class="paragraph">
+<p>In order to use FIDO2 we need to configure how the authentication provider shall work. For this we need to create and configure an <code>WebAuthn</code> object:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="java">    <span style="color: #999988;font-style: italic">// create the webauthn security object</span>
+    <span style="color: #445588;font-weight: bold">WebAuthn</span> <span style="background-color: #f8f8f8">webAuthN</span> <span style="color: #000000;font-weight: bold">=</span> <span style="color: #445588;font-weight: bold">WebAuthn</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">(</span>
+      <span style="background-color: #f8f8f8">vertx</span><span style="color: #000000;font-weight: bold">,</span>
+      <span style="color: #000000;font-weight: bold">new</span> <span style="color: #990000;font-weight: bold">WebAuthnOptions</span><span style="color: #000000;font-weight: bold">()</span>   // <b class="conum">(1)</b>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setRelyingParty</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #000000;font-weight: bold">new</span> <span style="color: #445588;font-weight: bold">RelyingParty</span><span style="color: #000000;font-weight: bold">()</span>
+          <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setName</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"Vert.x FIDO2/webauthn Howto"</span><span style="color: #000000;font-weight: bold">))</span>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setUserVerification</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">UserVerification</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">DISCOURAGED</span><span style="color: #000000;font-weight: bold">)</span>  // <b class="conum">(2)</b>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setAttestation</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">Attestation</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">NONE</span><span style="color: #000000;font-weight: bold">)</span>   // <b class="conum">(3)</b>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setRequireResidentKey</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #000000;font-weight: bold">false</span><span style="color: #000000;font-weight: bold">)</span>   // <b class="conum">(4)</b>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setChallengeLength</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #009999">64</span><span style="color: #000000;font-weight: bold">)</span>   // <b class="conum">(5)</b>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">addPubKeyCredParam</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">PublicKeyCredential</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">ES256</span><span style="color: #000000;font-weight: bold">)</span>    // <b class="conum">(6)</b>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">addPubKeyCredParam</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">PublicKeyCredential</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">RS256</span><span style="color: #000000;font-weight: bold">)</span>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">addTransport</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">AuthenticatorTransport</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">USB</span><span style="color: #000000;font-weight: bold">)</span>   // <b class="conum">(7)</b>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">addTransport</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">AuthenticatorTransport</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">NFC</span><span style="color: #000000;font-weight: bold">)</span>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">addTransport</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">AuthenticatorTransport</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">BLE</span><span style="color: #000000;font-weight: bold">)</span>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">addTransport</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">AuthenticatorTransport</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">INTERNAL</span><span style="color: #000000;font-weight: bold">))</span>
+      <span style="color: #999988;font-style: italic">// where to load/update authenticators data</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">authenticatorFetcher</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #990000;font-weight: bold">database:</span><span style="color: #000000;font-weight: bold">:</span><span style="background-color: #f8f8f8">fetcher</span><span style="color: #000000;font-weight: bold">)</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">authenticatorUpdater</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #990000;font-weight: bold">database:</span><span style="color: #000000;font-weight: bold">:</span><span style="background-color: #f8f8f8">updater</span><span style="color: #000000;font-weight: bold">);</span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>All configuration happens in the <code>WebAuthnOptions</code>. This is just a small example of sensible defaults, consult the javadocs for even more options.</p>
+</li>
+<li>
+<p>When verifying users we do not really require then to be verified.</p>
+</li>
+<li>
+<p>During registration we don&#8217;t want to attest the hardware.</p>
+</li>
+<li>
+<p>We don&#8217;t need resident keys for users to authenticate.</p>
+</li>
+<li>
+<p>Define the length of a challenge, the minimum is <code>32</code>.</p>
+</li>
+<li>
+<p>Which security algorithms do we accept.</p>
+</li>
+<li>
+<p>What kind of transports do we allow from the browser to the authenticator.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="web-router-initialization">Web router initialization</h3>
+<div class="paragraph">
+<p>Let&#8217;s start configuring our HTTP routes to be secure. Before you can use FIDO2 there are a few handlers that <strong>ALWAYS</strong> need to be in place:</p>
+</div>
 <div class="ulist">
 <ul>
 <li>
-<p>Always show the various options to run the application.</p>
+<p>BodyHandler</p>
+</li>
+<li>
+<p>SessionHandler</p>
 </li>
 </ul>
+</div>
+<div class="paragraph">
+<p>It is also recommended to have <code>StaticHandler</code> because the whole process requires both vert.x code (the one we&#8217;re currently exploring) and a small helper <code>JavaScript</code> script. To simplify development such helper is also provided by vert.x just by using a maven dependency:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="xml">  <span style="color: #000080">&lt;dependencies&gt;</span>
+    <span style="color: #000080">&lt;dependency&gt;</span>
+      <span style="color: #000080">&lt;groupId&gt;</span>io.vertx<span style="color: #000080">&lt;/groupId&gt;</span>
+      <span style="color: #000080">&lt;artifactId&gt;</span>vertx-web<span style="color: #000080">&lt;/artifactId&gt;</span>
+    <span style="color: #000080">&lt;/dependency&gt;</span>
+    <span style="color: #000080">&lt;dependency&gt;</span>
+      <span style="color: #000080">&lt;groupId&gt;</span>io.vertx<span style="color: #000080">&lt;/groupId&gt;</span>
+      <span style="color: #000080">&lt;artifactId&gt;</span>vertx-auth-webauthn<span style="color: #000080">&lt;/artifactId&gt;</span>
+    <span style="color: #000080">&lt;/dependency&gt;</span>
+    <span style="color: #000080">&lt;dependency&gt;</span>    &lt;!--<b class="conum">(1)</b>--&gt;
+      <span style="color: #000080">&lt;groupId&gt;</span>io.vertx<span style="color: #000080">&lt;/groupId&gt;</span>
+      <span style="color: #000080">&lt;artifactId&gt;</span>vertx-auth-webauthn<span style="color: #000080">&lt;/artifactId&gt;</span>
+      <span style="color: #000080">&lt;version&gt;</span>${vertx.version}<span style="color: #000080">&lt;/version&gt;</span>
+      <span style="color: #000080">&lt;classifier&gt;</span>client<span style="color: #000080">&lt;/classifier&gt;</span>
+      <span style="color: #000080">&lt;type&gt;</span>js<span style="color: #000080">&lt;/type&gt;</span>
+    <span style="color: #000080">&lt;/dependency&gt;</span>
+  <span style="color: #000080">&lt;/dependencies&gt;</span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>Provided simple helper script to interact with the vert.x backend.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Now we can initialize the web router as:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="java">    <span style="color: #000000;font-weight: bold">final</span> <span style="color: #445588;font-weight: bold">Router</span> <span style="background-color: #f8f8f8">app</span> <span style="color: #000000;font-weight: bold">=</span> <span style="color: #445588;font-weight: bold">Router</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">router</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">vertx</span><span style="color: #000000;font-weight: bold">);</span>
+    <span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">route</span><span style="color: #000000;font-weight: bold">()</span>   // <b class="conum">(1)</b>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">StaticHandler</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">());</span>
+    <span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">post</span><span style="color: #000000;font-weight: bold">()</span>    // <b class="conum">(2)</b>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">BodyHandler</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">());</span>
+    <span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">route</span><span style="color: #000000;font-weight: bold">()</span>   // <b class="conum">(3)</b>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">SessionHandler</span>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">LocalSessionStore</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">vertx</span><span style="color: #000000;font-weight: bold">)));</span>
+
+    <span style="color: #445588;font-weight: bold">WebAuthnHandler</span> <span style="background-color: #f8f8f8">webAuthnHandler</span> <span style="color: #000000;font-weight: bold">=</span> <span style="color: #445588;font-weight: bold">WebAuthnHandler</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">webAuthN</span><span style="color: #000000;font-weight: bold">)</span> // <b class="conum">(4)</b>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setOrigin</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">String</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">format</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"https://%s.nip.io:8443"</span><span style="color: #000000;font-weight: bold">,</span> <span style="color: #445588;font-weight: bold">System</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">getenv</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"IP"</span><span style="color: #000000;font-weight: bold">)))</span>
+      <span style="color: #999988;font-style: italic">// required callback</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setupCallback</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">post</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"/webauthn/callback"</span><span style="color: #000000;font-weight: bold">))</span>
+      <span style="color: #999988;font-style: italic">// optional register callback</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setupCredentialsCreateCallback</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">post</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"/webauthn/register"</span><span style="color: #000000;font-weight: bold">))</span>
+      <span style="color: #999988;font-style: italic">// optional login callback</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setupCredentialsGetCallback</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">post</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"/webauthn/login"</span><span style="color: #000000;font-weight: bold">));</span>
+
+    <span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">route</span><span style="color: #000000;font-weight: bold">()</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">webAuthnHandler</span><span style="color: #000000;font-weight: bold">)</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">failureHandler</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">ErrorHandler</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">vertx</span><span style="color: #000000;font-weight: bold">));</span>
+
+    <span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">route</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"/protected"</span><span style="color: #000000;font-weight: bold">)</span>   // <b class="conum">(5)</b>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">ctx</span> <span style="color: #000000;font-weight: bold">-&gt;</span>
+        <span style="background-color: #f8f8f8">ctx</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">response</span><span style="color: #000000;font-weight: bold">()</span>
+          <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">end</span><span style="color: #000000;font-weight: bold">(</span>
+            <span style="color: #d14">"FIDO2 is Awesome!\n"</span> <span style="color: #000000;font-weight: bold">+</span>
+              <span style="color: #d14">"No Password phishing here!\n"</span><span style="color: #000000;font-weight: bold">));</span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>Serve the client side application (more on this later).</p>
+</li>
+<li>
+<p>Enable parsing of POST request body.</p>
+</li>
+<li>
+<p>Enable sessions.</p>
+</li>
+<li>
+<p>Mount the webauthn handler using the config defined previously.</p>
+</li>
+<li>
+<p>Example secure route.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="server-boostrap">Server boostrap</h3>
+<div class="paragraph">
+<p>Now that we have a minimal router we need to create a HTTPS server. Note that this is a required step and the reason why we created a self-signed certificate and use a custom domain name for our development environment.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="java">    <span style="background-color: #f8f8f8">vertx</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">createHttpServer</span><span style="color: #000000;font-weight: bold">(</span>
+      <span style="color: #000000;font-weight: bold">new</span> <span style="color: #990000;font-weight: bold">HttpServerOptions</span><span style="color: #000000;font-weight: bold">()</span>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setSsl</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #000000;font-weight: bold">true</span><span style="color: #000000;font-weight: bold">)</span>
+        <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setKeyStoreOptions</span><span style="color: #000000;font-weight: bold">(</span>
+          <span style="color: #000000;font-weight: bold">new</span> <span style="color: #990000;font-weight: bold">JksOptions</span><span style="color: #000000;font-weight: bold">()</span>
+            <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setPath</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"certstore.jks"</span><span style="color: #000000;font-weight: bold">)</span>
+            <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setPassword</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">System</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">getenv</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"CERTSTORE_SECRET"</span><span style="color: #000000;font-weight: bold">))))</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">requestHandler</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">)</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">listen</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #009999">8443</span><span style="color: #000000;font-weight: bold">,</span> <span style="color: #d14">"0.0.0.0"</span><span style="color: #000000;font-weight: bold">)</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">onSuccess</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">v</span> <span style="color: #000000;font-weight: bold">-&gt;</span> <span style="color: #000000;font-weight: bold">{</span>
+        <span style="color: #445588;font-weight: bold">System</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">out</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">printf</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"Server: https://%s.nip.io:8443%n"</span><span style="color: #000000;font-weight: bold">,</span> <span style="color: #445588;font-weight: bold">System</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">getenv</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"IP"</span><span style="color: #000000;font-weight: bold">));</span>
+        <span style="background-color: #f8f8f8">start</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">complete</span><span style="color: #000000;font-weight: bold">();</span>
+      <span style="color: #000000;font-weight: bold">})</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">onFailure</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #990000;font-weight: bold">start:</span><span style="color: #000000;font-weight: bold">:</span><span style="background-color: #f8f8f8">fail</span><span style="color: #000000;font-weight: bold">);</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>At this moment our backend application is complete and the route <code>/protected</code> shall be secure by FIDO2. Running the application as:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="bash"><span style="color: #008080">IP</span><span style="color: #000000;font-weight: bold">=</span>10.0.0.2 <span style="color: #d14">\</span>
+mvn <span style="color: #0086B3">exec</span>:java
+
+<span style="color: #999988;font-style: italic"># The following line should be present in your console:</span>
+<span style="color: #999988;font-style: italic"># Server listening at: https://10.0.0.2.nip.io:8443</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It is normal that your browser will given you an warning about the self-signed certificate:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="selfsigned.png" alt="selfsigned" width="600">
+</div>
+</div>
+<div class="paragraph">
+<p>This is for your protection. In a real world application you should use a proper SSL certificate such as the ones issued by let&#8217;s encrypt.</p>
+</div>
+<div class="paragraph">
+<p>Navigating with your browser to: <code><a href="https://10.0.0.2.nip.io:8443/protected" class="bare">https://10.0.0.2.nip.io:8443/protected</a></code> should render a <code>Forbidden</code> error. The next step is to create a minimal login and registration web application.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="writing-the-client-code">Writing the client code</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>For the client application, no framework is going to be used in order to show that the script can be used with any framework or without.</p>
+</div>
+<div class="paragraph">
+<p>We will create a minimal HTML page with 3 sections:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>a form where users can register or login by just entering their:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Display Name</strong>: For example a user friendly name such as "John Doe"</p>
+</li>
+<li>
+<p><strong>Username</strong>: An unique username such as "<a href="mailto:john.doe@mail.com">john.doe@mail.com</a>"</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Buttons to <strong>register</strong> and <strong>login</strong></p>
+</li>
+<li>
+<p>A link to the protected resource, only after register <strong>AND</strong> login should be allowed.</p>
+</li>
+</ol>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="html"><span style="color: #999999;font-weight: bold">&lt;!DOCTYPE html&gt;</span>
+<span style="color: #000080">&lt;html</span> <span style="color: #008080">lang=</span><span style="color: #d14">"en"</span><span style="color: #000080">&gt;</span>
+<span style="color: #000080">&lt;head&gt;</span>
+  <span style="color: #000080">&lt;meta</span> <span style="color: #008080">charset=</span><span style="color: #d14">"utf-8"</span><span style="color: #000080">/&gt;</span>
+  <span style="color: #000080">&lt;title&gt;</span>WebAuthn Howto<span style="color: #000080">&lt;/title&gt;</span>
+<span style="color: #000080">&lt;/head&gt;</span>
+<span style="color: #000080">&lt;body&gt;</span>
+<span style="color: #000080">&lt;noscript&gt;</span>You need to enable JavaScript to run this app.<span style="color: #000080">&lt;/noscript&gt;</span>
+
+<span style="color: #000080">&lt;div</span> <span style="color: #008080">id=</span><span style="color: #d14">"message"</span><span style="color: #000080">&gt;&lt;/div&gt;</span>
+<span style="color: #000080">&lt;div&gt;</span> &lt;!--<b class="conum">(1)</b>--&gt;
+  <span style="color: #000080">&lt;label</span> <span style="color: #008080">for=</span><span style="color: #d14">"displayName"</span><span style="color: #000080">&gt;</span>Display Name: <span style="color: #000080">&lt;/label&gt;</span>
+  <span style="color: #000080">&lt;input</span> <span style="color: #008080">id=</span><span style="color: #d14">"displayName"</span> <span style="color: #008080">name=</span><span style="color: #d14">"displayName"</span> <span style="color: #008080">type=</span><span style="color: #d14">"text"</span> <span style="color: #008080">value=</span><span style="color: #d14">"Your Name"</span><span style="color: #000080">&gt;&lt;br/&gt;</span>
+  <span style="color: #000080">&lt;label</span> <span style="color: #008080">for=</span><span style="color: #d14">"username"</span><span style="color: #000080">&gt;</span>Username: <span style="color: #000080">&lt;/label&gt;</span>
+  <span style="color: #000080">&lt;input</span> <span style="color: #008080">id=</span><span style="color: #d14">"username"</span> <span style="color: #008080">name=</span><span style="color: #d14">"username"</span> <span style="color: #008080">type=</span><span style="color: #d14">"email"</span> <span style="color: #008080">value=</span><span style="color: #d14">"me@server.com"</span><span style="color: #000080">&gt;</span>
+<span style="color: #000080">&lt;/div&gt;</span>
+<span style="color: #000080">&lt;hr&gt;</span>
+<span style="color: #000080">&lt;div&gt;</span> &lt;!--<b class="conum">(2)</b>--&gt;
+  <span style="color: #000080">&lt;button</span> <span style="color: #008080">id=</span><span style="color: #d14">"register"</span><span style="color: #000080">&gt;</span>register<span style="color: #000080">&lt;/button&gt;</span>
+  <span style="color: #000080">&lt;button</span> <span style="color: #008080">id=</span><span style="color: #d14">"login"</span><span style="color: #000080">&gt;</span>login<span style="color: #000080">&lt;/button&gt;</span>
+<span style="color: #000080">&lt;/div&gt;</span>
+<span style="color: #000080">&lt;hr&gt;</span>
+<span style="color: #000080">&lt;div&gt;</span> &lt;!--<b class="conum">(3)</b>--&gt;
+  <span style="color: #000080">&lt;a</span> <span style="color: #008080">href=</span><span style="color: #d14">"/protected"</span><span style="color: #000080">&gt;</span>Want some secret info?<span style="color: #000080">&lt;/a&gt;</span>
+<span style="color: #000080">&lt;/div&gt;</span>
+
+<span style="color: #000080">&lt;script </span><span style="color: #008080">src=</span><span style="color: #d14">"vertx-auth-webauthn-client.js"</span><span style="color: #000080">&gt;&lt;/script&gt;</span>   &lt;!--<b class="conum">(4)</b>--&gt;
+<span style="color: #000080">&lt;script </span><span style="color: #008080">src=</span><span style="color: #d14">"main.js"</span><span style="color: #000080">&gt;&lt;/script&gt;</span>   &lt;!--<b class="conum">(5)</b>--&gt;
+<span style="color: #000080">&lt;/body&gt;</span>
+<span style="color: #000080">&lt;/html&gt;</span></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li>
+<p>The first section as described above.</p>
+</li>
+<li>
+<p>The second section as described above.</p>
+</li>
+<li>
+<p>The third section as described above.</p>
+</li>
+<li>
+<p>Helper script added to the project dependencies</p>
+</li>
+<li>
+<p>Your application script</p>
+</li>
+</ol>
+</div>
+<div class="sect2">
+<h3 id="the-client-script-code">The client script code</h3>
+<div class="paragraph">
+<p>You can check the full script <a href="src/main/resources/webroot/main.js">here</a>. Let&#8217;s just cover the important sections.</p>
+</div>
+<div class="paragraph">
+<p>The included script <code>vertx-auth-webauthn-client.js</code> defines a global type <code>WebAuthn</code>. The first step is to create an instance of this object and configure it to match our backend configuration:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="javascript"><span style="color: #000000;font-weight: bold">const</span> <span style="background-color: #f8f8f8">webAuthn</span> <span style="color: #000000;font-weight: bold">=</span> <span style="color: #000000;font-weight: bold">new</span> <span style="background-color: #f8f8f8">WebAuthn</span><span style="background-color: #f8f8f8">({</span>
+  <span style="color: #008080">callbackPath</span><span style="background-color: #f8f8f8">:</span> <span style="color: #d14">'</span><span style="color: #d14">/webauthn/callback</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">,</span>
+  <span style="color: #008080">registerPath</span><span style="background-color: #f8f8f8">:</span> <span style="color: #d14">'</span><span style="color: #d14">/webauthn/register</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">,</span>
+  <span style="color: #008080">loginPath</span><span style="background-color: #f8f8f8">:</span> <span style="color: #d14">'</span><span style="color: #d14">/webauthn/login</span><span style="color: #d14">'</span>
+<span style="background-color: #f8f8f8">});</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The configuration should be straightforward, only define the paths that match your backend routes.</p>
+</div>
+<div class="paragraph">
+<p>Next we need to add event handlers to our buttons. We start with the register action:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="javascript"><span style="background-color: #f8f8f8">registerButton</span><span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">onclick</span> <span style="color: #000000;font-weight: bold">=</span> <span style="background-color: #f8f8f8">()</span> <span style="color: #000000;font-weight: bold">=&gt;</span> <span style="background-color: #f8f8f8">{</span>
+  <span style="background-color: #f8f8f8">webAuthn</span>
+    <span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">register</span><span style="background-color: #f8f8f8">({</span>
+      <span style="color: #008080">name</span><span style="background-color: #f8f8f8">:</span> <span style="color: #0086B3">document</span><span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">getElementById</span><span style="background-color: #f8f8f8">(</span><span style="color: #d14">'</span><span style="color: #d14">username</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">).</span><span style="background-color: #f8f8f8">value</span><span style="background-color: #f8f8f8">,</span>
+      <span style="color: #008080">displayName</span><span style="background-color: #f8f8f8">:</span> <span style="color: #0086B3">document</span><span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">getElementById</span><span style="background-color: #f8f8f8">(</span><span style="color: #d14">'</span><span style="color: #d14">displayName</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">).</span><span style="background-color: #f8f8f8">value</span>
+    <span style="background-color: #f8f8f8">})</span>
+    <span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">then</span><span style="background-color: #f8f8f8">(()</span> <span style="color: #000000;font-weight: bold">=&gt;</span> <span style="background-color: #f8f8f8">{</span>
+      <span style="background-color: #f8f8f8">displayMessage</span><span style="background-color: #f8f8f8">(</span><span style="color: #d14">'</span><span style="color: #d14">registration successful</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">);</span>
+    <span style="background-color: #f8f8f8">})</span>
+    <span style="background-color: #f8f8f8">.</span><span style="color: #000000;font-weight: bold">catch</span><span style="background-color: #f8f8f8">(</span><span style="background-color: #f8f8f8">err</span> <span style="color: #000000;font-weight: bold">=&gt;</span> <span style="background-color: #f8f8f8">{</span>
+      <span style="background-color: #f8f8f8">displayMessage</span><span style="background-color: #f8f8f8">(</span><span style="color: #d14">'</span><span style="color: #d14">registration failed</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">);</span>
+      <span style="background-color: #f8f8f8">console</span><span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">error</span><span style="background-color: #f8f8f8">(</span><span style="background-color: #f8f8f8">err</span><span style="background-color: #f8f8f8">);</span>
+    <span style="background-color: #f8f8f8">});</span>
+<span style="background-color: #f8f8f8">};</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>onclick</code> event will just use the <code>Webauthn</code> object. The webauthn object has only 2 method and it&#8217;s <code>Promise</code> based to it should not be hard to grasp for vert.x users. If you&#8217;re mainly a <code>Java</code> vert.x developer, just think of a <code>JavaScript</code> Promise as a vert.x <code>Future</code> and everything should be very similar.</p>
+</div>
+<div class="paragraph">
+<p>To register a user there are just 2 required properties:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><code>name</code> the unique username, for example, an email address.</p>
+</li>
+<li>
+<p><code>displayName</code> a human friendly text description, for example, your first and last name.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Filling the form and clicking the register button, the user should be presented with a popup asking to authorize the registration:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="register-start.png" alt="register start" width="600">
+</div>
+</div>
+<div class="paragraph">
+<p>After you touch your authenticator the flow should complete successfully with:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="register-end.png" alt="register end" width="600">
+</div>
+</div>
+<div class="paragraph">
+<p>At this moment you can close your browser or even open a different one. The sign-up process is complete so you can now login from anywhere with your token.</p>
+</div>
+<div class="paragraph">
+<p>We now need to handle the <code>onclick</code> event for the login button:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight" style="background-color: #f8f8f8"><code data-lang="javascript"><span style="background-color: #f8f8f8">loginButton</span><span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">onclick</span> <span style="color: #000000;font-weight: bold">=</span> <span style="background-color: #f8f8f8">()</span> <span style="color: #000000;font-weight: bold">=&gt;</span> <span style="background-color: #f8f8f8">{</span>
+  <span style="background-color: #f8f8f8">webAuthn</span>
+    <span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">login</span><span style="background-color: #f8f8f8">({</span>
+      <span style="color: #008080">name</span><span style="background-color: #f8f8f8">:</span> <span style="color: #0086B3">document</span><span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">getElementById</span><span style="background-color: #f8f8f8">(</span><span style="color: #d14">'</span><span style="color: #d14">username</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">).</span><span style="background-color: #f8f8f8">value</span>
+    <span style="background-color: #f8f8f8">})</span>
+    <span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">then</span><span style="background-color: #f8f8f8">(()</span> <span style="color: #000000;font-weight: bold">=&gt;</span> <span style="background-color: #f8f8f8">{</span>
+      <span style="background-color: #f8f8f8">displayMessage</span><span style="background-color: #f8f8f8">(</span><span style="color: #d14">'</span><span style="color: #d14">You are logged in</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">);</span>
+    <span style="background-color: #f8f8f8">})</span>
+    <span style="background-color: #f8f8f8">.</span><span style="color: #000000;font-weight: bold">catch</span><span style="background-color: #f8f8f8">(</span><span style="background-color: #f8f8f8">err</span> <span style="color: #000000;font-weight: bold">=&gt;</span> <span style="background-color: #f8f8f8">{</span>
+      <span style="background-color: #f8f8f8">displayMessage</span><span style="background-color: #f8f8f8">(</span><span style="color: #d14">'</span><span style="color: #d14">Invalid credential</span><span style="color: #d14">'</span><span style="background-color: #f8f8f8">);</span>
+      <span style="background-color: #f8f8f8">console</span><span style="background-color: #f8f8f8">.</span><span style="background-color: #f8f8f8">error</span><span style="background-color: #f8f8f8">(</span><span style="background-color: #f8f8f8">err</span><span style="background-color: #f8f8f8">);</span>
+    <span style="background-color: #f8f8f8">});</span>
+<span style="background-color: #f8f8f8">};</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Like the FIDO2 describes, using webauthn is a passwordless authentication, so the only required field to perform the login is:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><code>name</code> the unique username, for example, an email address.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="login-start.png" alt="login start" width="600">
+</div>
+</div>
+<div class="paragraph">
+<p>Just like in the registration screen a popup will be presented telling you that there is an intent to login and asks the user for authorization. When you touch your authenticator you can see:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="login-end.png" alt="login end" width="600">
+</div>
+</div>
+<div class="paragraph">
+<p>Now that you&#8217;re logged in, you can finally try to see the secret info link, which shall give your something like:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="secret.png" alt="secret" width="600">
+</div>
+</div>
 </div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="summary">Summary</h2>
 <div class="sectionbody">
-<div class="ulist">
-<ul>
+<div class="paragraph">
+<p>In this how-to we covered:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
 <li>
-<p>Briefly recapitulate what was covered and learned in the how-to.</p>
+<p>Creating a web project</p>
 </li>
-</ul>
+<li>
+<p>Secure a web application with Webauthn</p>
+</li>
+<li>
+<p>Write the client side code with the help of webauthn-client.js</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>I hope you now can use FIDO2/webauthn on your next project!</p>
 </div>
 </div>
 </div>
@@ -268,10 +732,13 @@
 <div class="ulist">
 <ul>
 <li>
-<p>If possible, link to other how-tos.</p>
+<p><a href="https://vertx.io/docs/vertx-core/java/">The Vert.x core APIs documentation</a></p>
 </li>
 <li>
-<p>If judicious, link to Vert.x or third-party documentation.</p>
+<p><a href="https://vertx.io/docs/vertx-web/java/">The Vert.x web documentation</a></p>
+</li>
+<li>
+<p><a href="https://vertx.io/docs/vertx-auth-webauthn/java/">The Vert.x Webauthn documentation</a></p>
 </li>
 </ul>
 </div>
@@ -380,7 +847,7 @@
   <div class="row">
     <div class="col">
       <hr>
-      <p><small>Last published: 2021-05-18 01:04:57 +0000.</small></p>
+      <p><small>Last published: 2021-05-18 10:20:18 +0000.</small></p>
     </div>
   </div>
 </div>
