@@ -404,8 +404,7 @@ keytool <span style="color: #d14">\</span>
       <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">setupCredentialsGetCallback</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">post</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"/webauthn/login"</span><span style="color: #000000;font-weight: bold">));</span>
 
     <span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">route</span><span style="color: #000000;font-weight: bold">()</span>
-      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">webAuthnHandler</span><span style="color: #000000;font-weight: bold">)</span>
-      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">failureHandler</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #445588;font-weight: bold">ErrorHandler</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">create</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">vertx</span><span style="color: #000000;font-weight: bold">));</span>
+      <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">webAuthnHandler</span><span style="color: #000000;font-weight: bold">);</span>
 
     <span style="background-color: #f8f8f8">app</span><span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">route</span><span style="color: #000000;font-weight: bold">(</span><span style="color: #d14">"/protected"</span><span style="color: #000000;font-weight: bold">)</span>   // <b class="conum">(5)</b>
       <span style="color: #000000;font-weight: bold">.</span><span style="color: #008080">handler</span><span style="color: #000000;font-weight: bold">(</span><span style="background-color: #f8f8f8">ctx</span> <span style="color: #000000;font-weight: bold">-&gt;</span>
@@ -847,7 +846,7 @@ mvn <span style="color: #0086B3">exec</span>:java
   <div class="row">
     <div class="col">
       <hr>
-      <p><small>Last published: 2021-05-18 10:20:18 +0000.</small></p>
+      <p><small>Last published: 2021-05-18 10:23:05 +0000.</small></p>
     </div>
   </div>
 </div>
