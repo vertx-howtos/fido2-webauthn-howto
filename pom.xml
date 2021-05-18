@@ -19,8 +19,7 @@
     <vertx.version>4.0.3</vertx.version>
     <junit-jupiter.version>5.7.0</junit-jupiter.version>
 
-    <main.verticle>howto.fido2.MainVerticle</main.verticle>
-    <launcher.class>io.vertx.core.Launcher</launcher.class>
+    <vertx.verticle>howto.fido2.MainVerticle</vertx.verticle>
   </properties>
 
   <dependencyManagement>
@@ -35,6 +34,7 @@
     </dependencies>
   </dependencyManagement>
 
+  <!-- tag::dependencies[] -->
   <dependencies>
     <dependency>
       <groupId>io.vertx</groupId>
@@ -44,25 +44,15 @@
       <groupId>io.vertx</groupId>
       <artifactId>vertx-auth-webauthn</artifactId>
     </dependency>
-
-    <dependency>
+    <dependency>    <!--1-->
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-junit5</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
+      <artifactId>vertx-auth-webauthn</artifactId>
+      <version>${vertx.version}</version>
+      <classifier>client</classifier>
+      <type>js</type>
     </dependency>
   </dependencies>
+  <!-- end::dependencies[] -->
 
   <build>
     <plugins>
@@ -74,45 +64,20 @@
         </configuration>
       </plugin>
       <plugin>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>${maven-shade-plugin.version}</version>
+        <groupId>io.reactiverse</groupId>
+        <artifactId>vertx-maven-plugin</artifactId>
+        <version>1.0.18</version>
         <executions>
           <execution>
-            <phase>package</phase>
+            <id>vmp</id>
             <goals>
-              <goal>shade</goal>
+              <goal>initialize</goal>
+              <goal>package</goal>
             </goals>
-            <configuration>
-              <transformers>
-                <transformer
-                  implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <manifestEntries>
-                    <Main-Class>${launcher.class}</Main-Class>
-                    <Main-Verticle>${main.verticle}</Main-Verticle>
-                  </manifestEntries>
-                </transformer>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-              </transformers>
-              <outputFile>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar
-              </outputFile>
-            </configuration>
           </execution>
         </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven-surefire-plugin.version}</version>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>${exec-maven-plugin.version}</version>
         <configuration>
-          <mainClass>io.vertx.core.Launcher</mainClass>
-          <arguments>
-            <argument>run</argument>
-            <argument>${main.verticle}</argument>
-          </arguments>
+          <redeploy>true</redeploy>
         </configuration>
       </plugin>
     </plugins>

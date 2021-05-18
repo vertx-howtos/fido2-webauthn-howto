@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>WebAuthn Howto</title>
+</head>
+<body>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+
+<div id="message"></div>
+<div> <!--1-->
+  <label for="displayName">Display Name: </label>
+  <input id="displayName" name="displayName" type="text" value="Your Name"><br/>
+  <label for="username">Username: </label>
+  <input id="username" name="username" type="email" value="me@server.com">
+</div>
+<hr>
+<div> <!--2-->
+  <button id="register">register</button>
+  <button id="login">login</button>
+</div>
+<hr>
+<div> <!--3-->
+  <a href="/protected">Want some secret info?</a>
+</div>
+
+<script src="vertx-auth-webauthn-client.js"></script>   <!--4-->
+<script src="main.js"></script>   <!--5-->
+</body>
+</html>

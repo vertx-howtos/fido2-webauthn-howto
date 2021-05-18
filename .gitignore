@@ -10,3 +10,5 @@ build/
 .sass-cache/
 Gemfile.lock
 _site/
+certstore.jks
+certstore.jks.old

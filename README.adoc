@@ -37,22 +37,24 @@ To create a self-signed certificate for your IP address do the following:
 
 [source,bash]
 ----
+export IP=10.0.0.2
+export CERTSTORE_SECRET=password    # <1>
 keytool \
   -genkeypair \
   -alias rsakey \
   -keyalg rsa \
-  -storepass passphrase \      # <1>
-  -keystore mytestkeys.jks \
+  -storepass ${CERTSTORE_SECRET} \
+  -keystore certstore.jks \
   -storetype JKS \
-  -dname "CN=192.168.178.74.xip.io,O=Vert.x Development" # <2>
+  -dname "CN=${IP}.nip.io,O=Vert.x Development" # <2>
 ----
 <1> Don't use this password!
-<2> replace the CN with your own IP address (other than localhost) with suffix .xip.io
+<2> replace the CN with your own IP address (other than localhost) with suffix `.nip.io`
 
-For this setup we're relying on a "free" DNS server that returns your IP address when queried. Other services exist in the web that provide the same results, for example:
+For this setup we're relying on a free DNS server that returns your IP address when queried. Other services exist in the web that provide the same results, for example:
 
 * https://sslip.io/
-* https://nip.io/
+* https://xip.io/
 
 At this moment we have a SSL certificate, however the format is considered deprecated for modern Java versions, so we need a second step to convert it to `PKCS#12`:
 
@@ -60,12 +62,12 @@ At this moment we have a SSL certificate, however the format is considered depre
 ----
 keytool \
   -importkeystore \
-  -srckeystore mytestkeys.jks \
-  -destkeystore mytestkeys.jks \
+  -srckeystore certstore.jks \
+  -destkeystore certstore.jks \
   -deststoretype pkcs12
 ----
 
-Your new SSL certificate is on the file `mytestkeys.jks`.
+Your new SSL certificate is on the file `certstore.jks`.
 
 
 == Registration Flow
@@ -85,21 +87,193 @@ image::register-flow.jpg[]
 
 image::authn-flow.jpg[]
 
+1. User authenticates using just a **username**
+2. Your server (Relying Party) creates a secure challenge
+3. The browser will pass this information to the token device
+4. The token generates verifies the credential and signs the challenge
+5. The browser creates an authentication assertion
+6. The server verifies that the assertion is correct and allows the user
+
+== Writing the server code
+
+=== Handling Authenticator Objects
+
+You can find the full source code link:src/main/java/howto/fido2/MainVerticle.java[here], for now let's just cover important parts.
+
+In order to have some working registration and authentication we need to be able to store and query authenticator data. For this we need to provide a few functions that do exactly this job. You can check it's source code link:src/main/java/howto/fido2/InMemoryStore.java[here]. In your verticle you start by creating this object as:
+
+[source,java]
+----
+include::src/main/java/howto/fido2/MainVerticle.java[tags=database]
+----
+
+=== Configure the Webauthn Object
+
+In order to use FIDO2 we need to configure how the authentication provider shall work. For this we need to create and configure an `WebAuthn` object:
+
+[source,java]
+----
+include::src/main/java/howto/fido2/MainVerticle.java[tags=setup]
+----
+<1> All configuration happens in the `WebAuthnOptions`. This is just a small example of sensible defaults, consult the javadocs for even more options.
+<2> When verifying users we do not really require then to be verified.
+<3> During registration we don't want to attest the hardware.
+<4> We don't need resident keys for users to authenticate.
+<5> Define the length of a challenge, the minimum is `32`.
+<6> Which security algorithms do we accept.
+<7> What kind of transports do we allow from the browser to the authenticator.
 
 
-- Make one or multiple sections to show the implementation.
-- Make use of Asciidoc source code comments to highlight specific parts of the code.
-- The code must be included using https://asciidoctor.org/docs/asciidoc-syntax-quick-reference/#source-code[Asciidoc directives]. Remember that you can include fragments of code by using delimiter tags.
+=== Web router initialization
 
-== Running the application
+Let's start configuring our HTTP routes to be secure. Before you can use FIDO2 there are a few handlers that **ALWAYS** need to be in place:
 
-- Always show the various options to run the application.
+* BodyHandler
+* SessionHandler
+
+It is also recommended to have `StaticHandler` because the whole process requires both vert.x code (the one we're currently exploring) and a small helper `JavaScript` script. To simplify development such helper is also provided by vert.x just by using a maven dependency:
+
+[source,xml]
+----
+include::pom.xml[tags=dependencies]
+----
+<1> Provided simple helper script to interact with the vert.x backend.
+
+Now we can initialize the web router as:
+
+[source,java]
+----
+include::src/main/java/howto/fido2/MainVerticle.java[tags=routerInit]
+----
+<1> Serve the client side application (more on this later).
+<2> Enable parsing of POST request body.
+<3> Enable sessions.
+<4> Mount the webauthn handler using the config defined previously.
+<5> Example secure route.
+
+=== Server boostrap
+
+Now that we have a minimal router we need to create a HTTPS server. Note that this is a required step and the reason why we created a self-signed certificate and use a custom domain name for our development environment.
+
+[source,java]
+----
+include::src/main/java/howto/fido2/MainVerticle.java[tags=https]
+----
+
+At this moment our backend application is complete and the route `/protected` shall be secure by FIDO2. Running the application as:
+
+[source,bash]
+----
+IP=10.0.0.2 \
+mvn exec:java
+
+# The following line should be present in your console:
+# Server listening at: https://10.0.0.2.nip.io:8443
+----
+
+It is normal that your browser will given you an warning about the self-signed certificate:
+
+image::selfsigned.png[width=600]
+
+This is for your protection. In a real world application you should use a proper SSL certificate such as the ones issued by let's encrypt.
+
+Navigating with your browser to: `https://10.0.0.2.nip.io:8443/protected` should render a `Forbidden` error. The next step is to create a minimal login and registration web application.
+
+== Writing the client code
+
+For the client application, no framework is going to be used in order to show that the script can be used with any framework or without.
+
+We will create a minimal HTML page with 3 sections:
+
+1. a form where users can register or login by just entering their:
+    * **Display Name**: For example a user friendly name such as "John Doe"
+    * **Username**: An unique username such as "john.doe@mail.com"
+2. Buttons to **register** and **login**
+3. A link to the protected resource, only after register **AND** login should be allowed.
+
+[source,html]
+----
+include::src/main/resources/webroot/index.html[]
+----
+<1> The first section as described above.
+<2> The second section as described above.
+<3> The third section as described above.
+<4> Helper script added to the project dependencies
+<5> Your application script
+
+
+=== The client script code
+
+You can check the full script link:src/main/resources/webroot/main.js[here]. Let's just cover the important sections.
+
+The included script `vertx-auth-webauthn-client.js` defines a global type `WebAuthn`. The first step is to create an instance of this object and configure it to match our backend configuration:
+
+[source,javascript]
+----
+include::src/main/resources/webroot/main.js[tag=create]
+----
+
+The configuration should be straightforward, only define the paths that match your backend routes.
+
+Next we need to add event handlers to our buttons. We start with the register action:
+
+[source,javascript]
+----
+include::src/main/resources/webroot/main.js[tag=register]
+----
+
+The `onclick` event will just use the `Webauthn` object. The webauthn object has only 2 method and it's `Promise` based to it should not be hard to grasp for vert.x users. If you're mainly a `Java` vert.x developer, just think of a `JavaScript` Promise as a vert.x `Future` and everything should be very similar.
+
+To register a user there are just 2 required properties:
+
+1. `name` the unique username, for example, an email address.
+2. `displayName` a human friendly text description, for example, your first and last name.
+
+Filling the form and clicking the register button, the user should be presented with a popup asking to authorize the registration:
+
+image::register-start.png[width=600]
+
+After you touch your authenticator the flow should complete successfully with:
+
+image::register-end.png[width=600]
+
+At this moment you can close your browser or even open a different one. The sign-up process is complete so you can now login from anywhere with your token.
+
+We now need to handle the `onclick` event for the login button:
+
+[source,javascript]
+----
+include::src/main/resources/webroot/main.js[tag=login]
+----
+
+Like the FIDO2 describes, using webauthn is a passwordless authentication, so the only required field to perform the login is:
+
+1. `name` the unique username, for example, an email address.
+
+image::login-start.png[width=600]
+
+Just like in the registration screen a popup will be presented telling you that there is an intent to login and asks the user for authorization. When you touch your authenticator you can see:
+
+image::login-end.png[width=600]
+
+Now that you're logged in, you can finally try to see the secret info link, which shall give your something like:
+
+image::secret.png[width=600]
+
 
 == Summary
 
-- Briefly recapitulate what was covered and learned in the how-to.
+In this how-to we covered:
+
+1. Creating a web project
+2. Secure a web application with Webauthn
+3. Write the client side code with the help of webauthn-client.js
+
+I hope you now can use FIDO2/webauthn on your next project!
+
 
 == See also
 
-- If possible, link to other how-tos.
-- If judicious, link to Vert.x or third-party documentation.
+- https://vertx.io/docs/vertx-core/java/[The Vert.x core APIs documentation]
+- https://vertx.io/docs/vertx-web/java/[The Vert.x web documentation]
+- https://vertx.io/docs/vertx-auth-webauthn/java/[The Vert.x Webauthn documentation]
