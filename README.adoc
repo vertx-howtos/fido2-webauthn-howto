@@ -2,7 +2,7 @@
 :author: Paulo Lopes <pmlopes@gmail.com>
 :toc:
 
-This how to will show you how to build and secure a simple web vert.x application with FIDO2 (commonly known as Web Authentication API). The Web Authentication API (also known as WebAuthn) is a specification written by the W3C and FIDO, with the participation of Google, Mozilla, Microsoft, Yubico, and others. The API allows servers to register and authenticate users using public key cryptography instead of a password.
+This how to will show you how to build and secure a simple https://github.com/herrjemand/awesome-webauthn#server-libs[FIDO2 CONFORMANT] (commonly known as Web Authentication API) vert.x web application. The Web Authentication API (also known as WebAuthn) is a specification written by the W3C and FIDO Alliance, with the participation of Google, Mozilla, Microsoft, Yubico, and others. The API allows servers to register and authenticate users using public key cryptography instead of a password.
 
 
 == What you will build
