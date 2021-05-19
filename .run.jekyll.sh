@@ -9,6 +9,10 @@ bundle exec jekyll build
 echo "⚙️  Copying the files"
 rm -rf _gh_pages/*
 cp -R _site/* _gh_pages/
+# include sources as they are linked from the howto
+cp -R src _gh_pages/
+cp pom.xml _gh_pages/
+# sometimes jekyll doesn't rename to index
 mv _gh_pages/README.html _gh_pages/index.html || true
 
 echo "🚀 Commit and push"
